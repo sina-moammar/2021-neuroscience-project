@@ -3,6 +3,7 @@ import networkit as nk
 from networkit.graph import Graph
 from numpy import float32 as float32
 from collections import defaultdict
+from typing import List
 
 
 class cortex_model:
@@ -18,7 +19,7 @@ class cortex_model:
             v_reset (float32): reset potential after firing
             v_rev (float32): reversal potential of ion channel in dendrites
             t_m (float32): timescale of potentials' dynamics
-            t_ref (float32): refractory period
+            t_ref (float32): refractory period. Should be multiple of t_delay
             t_delay (float32): travel-time delay from pre- to post-synaptic neurons
             t_stdp (float32): time constant of spikes tracing
             theta_stdp (float32): threshold for synaptic plasticity
@@ -40,10 +41,6 @@ class cortex_model:
         self.size = graph.numberOfNodes()
         # potentials of neurons
         self.v_s = np.zeros(self.size, np.float32)
-        # dummy variable for tracing neurons' spikes
-        self.x_s = np.zeros(self.size, np.float32)
-        # number of neurons' spikes
-        self.n_s = np.zeros(self.size, np.int32)
         # which neuron have been fired last step
         self.is_fired = np.zeros(self.size, bool)
         self.fired_neurons = np.array([])
@@ -66,7 +63,7 @@ class cortex_model:
         self.neurons = np.arange(self.size)
         
         
-    def restart(self, abv_th_per: float = 0.02):
+    def restart(self, abv_th_per: float = 0.02) -> None:
         """restarts the system for new neurons' dynamics
 
         Args:
@@ -77,9 +74,17 @@ class cortex_model:
         pass
     
     
-    def get_post_syn_neurons(self, neuron):
+    def get_post_syn_neurons(self, neuron: int) -> List[np.uint16]:
+        """find post-synaptic neurons of given neuron.
+
+        Args:
+            neuron (int): neuron number
+
+        Returns:
+            [type]: [description]
+        """
         if not len(self.post_syn_neurons[neuron]):
-            self.post_syn_neurons[neuron] = np.fromiter(self.graph.iterInNeighbors(neuron), np.uint16)
+            self.post_syn_neurons[neuron] = np.fromiter(self.graph.iterNeighbors(neuron), np.uint16)
             
         return self.post_syn_neurons[neuron]
         
