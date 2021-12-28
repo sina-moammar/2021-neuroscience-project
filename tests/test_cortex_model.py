@@ -114,3 +114,30 @@ def test_neurons_dynamics():
     model.neurons_dynamics()
     assert np.array_equal(model.is_in_ref, [0, 1, 1, 0])
     assert np.array_equal(model.steps_after_spike, [0, 2, 2, 0])
+
+
+def test_c_syn():
+    params = default_params()
+    v_exp_step = np.exp(-params['t_delay'] / params['t_m'])
+
+    model = cortex_model(**params)
+    
+    model.is_inh[:] = [0, 0, 1, 0]
+    v_s_0 = np.array([10, 0.98, 0.95, 0.3], np.float32) * params['v_th']
+    model.v_s[:] = v_s_0
+    
+    # step 0
+    assert model.c_syn() == 0
+    
+    # step 1
+    model.neurons_dynamics()
+    assert model.c_syn() == 1 / 16
+    
+    # step 2
+    model.neurons_dynamics()
+    assert model.c_syn() == 1 / 4
+    
+    # step 3
+    model.neurons_dynamics()
+    assert model.c_syn() == 0
+    

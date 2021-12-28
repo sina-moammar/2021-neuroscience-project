@@ -1,7 +1,7 @@
 import numpy as np
 import networkit as nk
 from networkit.graph import Graph
-from numpy import float32 as float32
+from numpy import float32 as float32, float64 as float64
 from collections import defaultdict
 from typing import List
 
@@ -123,13 +123,17 @@ class cortex_model:
         self.is_in_ref[self.fired_neurons] = True
         
     
-    
-    def STDP_dynamics(self, size: int = -1) -> None:
+    def STDP_dynamics(self) -> None:
         """STDP update rule
-
-        Args:
-            size (int, optional): number of the synapses which should be updated.
-                                  `-1` means all the synapses. Defaults to -1.
         """
         
         pass
+    
+    
+    def c_syn(self) -> float64:
+        """compute order parameter C_syn
+
+        Returns:
+            float64: order parameter C_syn
+        """
+        return np.mean(self.is_fired[:, np.newaxis] & self.is_fired)
