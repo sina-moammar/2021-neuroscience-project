@@ -81,8 +81,9 @@ class cortex_model:
             neuron (int): neuron number
 
         Returns:
-            [type]: [description]
+            List[np.uint16]: list of post-synaptic neurons of given neuron
         """
+        
         if not len(self.post_syn_neurons[neuron]):
             self.post_syn_neurons[neuron] = np.fromiter(self.graph.iterNeighbors(neuron), np.uint16)
             
