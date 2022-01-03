@@ -11,7 +11,8 @@ class cortex_model:
     
     def __init__(self, graph: Graph, inh_per: float, v_th: float32, v_reset: float32,
                 v_rev: float32, t_m: float32, t_ref: float32, t_delay: float32,
-                t_stdp: float32, theta_stdp: float32, g_c: float32, mode: MODE = 'full') -> None:
+                t_stdp: float32, theta_stdp: float32, g_c: float32, g_levels: int = 1,
+                mode: MODE = 'full') -> None:
         """Constructs a model of braincortex with STDP
 
         Args:
@@ -27,6 +28,7 @@ class cortex_model:
             theta_stdp (float32): threshold for synaptic plasticity
             g_c (float32): maximum synaptic conductances
             mode (MODE, optional): how to count arrived spikes matrix. Defaults to 'full'.
+            g_levels (int, optional): levels of . Defaults to 'full'.
         """
         
         self.graph = graph
@@ -38,14 +40,14 @@ class cortex_model:
         self.t_delay = t_delay
         self.t_stdp = t_stdp
         self.theta_stdp = theta_stdp
-        self.g_c = g_c
+        self.g_c = g_c / 1000
         self.is_full_model = mode == 'full'
         
         # number of neurons
         self.size = graph.numberOfNodes()
         # relative conductance matrix (g_ij / g_c)
         if self.is_full_model:
-            self.g_s = nk.algebraic.adjacencyMatrix(self.graph, matrixType='dense').astype(np.int16)
+            self.g_s = nk.algebraic.adjacencyMatrix(self.graph, matrixType='dense').astype(np.int16) * 1000
         # potentials of neurons
         self.v_s = np.zeros(self.size, np.float32)
         # which neuron have been fired last step
