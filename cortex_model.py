@@ -28,8 +28,11 @@ class cortex_model:
             theta_stdp (float32): threshold for synaptic plasticity
             g_c (float32): maximum synaptic conductances
             mode (MODE, optional): how to count arrived spikes matrix. Defaults to 'full'.
-            g_levels (int, optional): levels of . Defaults to 'full'.
+            g_levels (int, optional): lambda(learning rate) = 1 / g_levels. Defaults to 1.
         """
+        
+        if mode == 'mask':
+            assert g_levels == 1, "Only `g_levels = 1` is supported in `mask` mode"
         
         self.graph = graph
         self.v_th = v_th
@@ -40,14 +43,14 @@ class cortex_model:
         self.t_delay = t_delay
         self.t_stdp = t_stdp
         self.theta_stdp = theta_stdp
-        self.g_c = g_c / 1000
+        self.g_c = np.float32(g_c / g_levels)
         self.is_full_model = mode == 'full'
         
         # number of neurons
         self.size = graph.numberOfNodes()
         # relative conductance matrix (g_ij / g_c)
         if self.is_full_model:
-            self.g_s = nk.algebraic.adjacencyMatrix(self.graph, matrixType='dense').astype(np.int16) * 1000
+            self.g_s = nk.algebraic.adjacencyMatrix(self.graph, matrixType='dense').astype(np.int16) * g_levels
         # potentials of neurons
         self.v_s = np.zeros(self.size, np.float32)
         # which neuron have been fired last step
