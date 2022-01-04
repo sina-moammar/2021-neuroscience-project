@@ -2,14 +2,17 @@ import numpy as np
 import networkit as nk
 from networkit.graph import Graph
 from numpy import float32 as float32, float64 as float64
-from collections import defaultdict
 from typing import List
+from typing_extensions import Literal
 
 
 class cortex_model:
+    MODE = Literal['mask', 'full']
+    
     def __init__(self, graph: Graph, inh_per: float, v_th: float32, v_reset: float32,
                 v_rev: float32, t_m: float32, t_ref: float32, t_delay: float32,
-                t_stdp: float32, theta_stdp: float32, g_c: float32) -> None:
+                t_stdp: float32, theta_stdp: float32, g_c: float32, g_levels: int = 1,
+                mode: MODE = 'full') -> None:
         """Constructs a model of braincortex with STDP
 
         Args:
@@ -24,7 +27,12 @@ class cortex_model:
             t_stdp (float32): time constant of spikes tracing
             theta_stdp (float32): threshold for synaptic plasticity
             g_c (float32): maximum synaptic conductances
+            mode (MODE, optional): how to count arrived spikes matrix. Defaults to 'full'.
+            g_levels (int, optional): lambda(learning rate) = 1 / g_levels. Defaults to 1.
         """
+        
+        if mode == 'mask':
+            assert g_levels == 1, "Only `g_levels = 1` is supported in `mask` mode"
         
         self.graph = graph
         self.v_th = v_th
@@ -35,10 +43,14 @@ class cortex_model:
         self.t_delay = t_delay
         self.t_stdp = t_stdp
         self.theta_stdp = theta_stdp
-        self.g_c = g_c
+        self.g_c = np.float32(g_c / g_levels)
+        self.is_full_model = mode == 'full'
         
         # number of neurons
         self.size = graph.numberOfNodes()
+        # relative conductance matrix (g_ij / g_c)
+        if self.is_full_model:
+            self.g_s = nk.algebraic.adjacencyMatrix(self.graph, matrixType='dense').astype(np.int16) * g_levels
         # potentials of neurons
         self.v_s = np.zeros(self.size, np.float32)
         # which neuron have been fired last step
@@ -49,7 +61,7 @@ class cortex_model:
         # steps since last spike for checking refractory period
         self.steps_after_spike = np.zeros(self.size, np.uint16)
         # list of post synaptics neurons of every neuron
-        self.post_syn_neurons = defaultdict(list)
+        self.post_syn_neurons = {}
         # which neurons are inhibitory
         self.is_inh = np.random.choice((True, False), self.size, p=(inh_per, 1 - inh_per))
         
@@ -58,9 +70,9 @@ class cortex_model:
         # refractory time in t_delay timescale
         self.ref_steps = np.uint16(self.t_ref / self.t_delay)
         # total spikes arrived from fired pre-synaptic neurons
-        self.pre_syn_spikes = np.zeros(self.size)
+        self.pre_syn_spikes = np.zeros(self.size, dtype=np.int16)
         # neurons' number
-        self.neurons = np.arange(self.size)
+        self.neurons = np.arange(self.size, dtype=np.uint16)
         
         
     def restart(self, abv_th_per: float = 0.02) -> None:
@@ -81,9 +93,10 @@ class cortex_model:
             neuron (int): neuron number
 
         Returns:
-            [type]: [description]
+            List[np.uint16]: list of post-synaptic neurons of given neuron
         """
-        if not len(self.post_syn_neurons[neuron]):
+        
+        if self.post_syn_neurons.get(neuron) is None:
             self.post_syn_neurons[neuron] = np.fromiter(self.graph.iterNeighbors(neuron), np.uint16)
             
         return self.post_syn_neurons[neuron]
@@ -110,8 +123,14 @@ class cortex_model:
         
         # count relative spikes for every post-synaptic neurons and update their potentials
         for neuron in self.fired_neurons:
-            post_syn_neuros = self.get_post_syn_neurons(neuron)
-            self.pre_syn_spikes[post_syn_neuros] += -1 if self.is_inh[neuron] else +1
+            if self.is_full_model:
+                if self.is_inh[neuron]:
+                    self.pre_syn_spikes -= self.g_s[neuron]
+                else:
+                    self.pre_syn_spikes += self.g_s[neuron]
+            else:
+                post_syn_neuros = self.get_post_syn_neurons(neuron)
+                self.pre_syn_spikes[post_syn_neuros] += -1 if self.is_inh[neuron] else +1
         self.v_s += (self.v_rev - self.v_s) * (self.g_c * self.pre_syn_spikes)
         
         # set neurons in refractory period to v_reset
