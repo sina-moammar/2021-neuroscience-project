@@ -64,13 +64,13 @@ class cortex_model:
         self.post_syn_neurons = {}
         # which neurons are inhibitory
         self.is_inh = np.random.choice((True, False), self.size, p=(inh_per, 1 - inh_per))
+        # total spikes arrived from fired pre-synaptic neurons
+        self.pre_syn_spikes = np.zeros(self.size, dtype=np.int16)
         
         # v_n = v_{n - 1} * exp(-t_delay / t_m)
         self.v_exp_step = np.exp(-self.t_delay / self.t_m)
         # refractory time in t_delay timescale
         self.ref_steps = np.uint16(self.t_ref / self.t_delay)
-        # total spikes arrived from fired pre-synaptic neurons
-        self.pre_syn_spikes = np.zeros(self.size, dtype=np.int16)
         # neurons' number
         self.neurons = np.arange(self.size, dtype=np.uint16)
         
@@ -83,7 +83,17 @@ class cortex_model:
                                           Defaults to 0.02.
         """
         
-        pass
+        # assigning random potentials to neurons
+        self.v_s = np.random.rand(self.size, np.float32).astype(np.float32) * self.v_th
+        
+        # set `abv_th_per` percentage of neurons fired
+        self.is_fired = np.random.choice((True, False), self.size, p=(abv_th_per, 1 - abv_th_per))
+        self.fired_neurons = self.neurons[self.is_fired]
+        
+        self.is_in_ref[:] = False
+        self.is_in_ref[self.is_fired] = True
+        
+        self.steps_after_spike[:] = 0
     
     
     def get_post_syn_neurons(self, neuron: int) -> List[np.uint16]:
@@ -107,7 +117,7 @@ class cortex_model:
         """
         
         # restet pre-synaptic spikes count
-        self.pre_syn_spikes.fill(0)
+        self.pre_syn_spikes[:] = 0
         
         self.steps_after_spike[self.is_in_ref] += 1
         # find which neurons refractory period is ended
