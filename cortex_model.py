@@ -84,7 +84,7 @@ class cortex_model:
         """
         
         # assigning random potentials to neurons
-        self.v_s = np.random.rand(self.size, np.float32).astype(np.float32) * self.v_th
+        self.v_s = np.random.rand(self.size).astype(np.float32) * self.v_th
         
         # set `abv_th_per` percentage of neurons fired
         self.is_fired = np.random.choice((True, False), self.size, p=(abv_th_per, 1 - abv_th_per))
