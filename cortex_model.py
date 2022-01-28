@@ -44,7 +44,8 @@ class cortex_model:
         self.t_stdp = t_stdp
         self.theta_stdp = theta_stdp
         self.g_c = np.float32(g_c / g_levels)
-        self.is_full_model = mode == 'full'
+        self.g_levels = g_levels
+        self.is_full_model = (mode == 'full')
         
         # number of neurons
         self.size = graph.numberOfNodes()
@@ -69,6 +70,7 @@ class cortex_model:
         
         # v_n = v_{n - 1} * exp(-t_delay / t_m)
         self.v_exp_step = np.exp(-self.t_delay / self.t_m)
+        self.x_exp_step = np.exp(-self.t_delay / self.t_stdp)
         # refractory time in t_delay timescale
         self.ref_steps = np.uint16(self.t_ref / self.t_delay)
         # neurons' number
@@ -121,7 +123,7 @@ class cortex_model:
         
         self.steps_after_spike[self.is_in_ref] += 1
         # find which neurons refractory period is ended
-        is_ref_ended = self.steps_after_spike == self.ref_steps
+        is_ref_ended = (self.steps_after_spike == self.ref_steps)
         self.is_in_ref[is_ref_ended] = False
         self.steps_after_spike[is_ref_ended] = 0
         
@@ -139,8 +141,8 @@ class cortex_model:
                 else:
                     self.pre_syn_spikes += self.g_s[neuron]
             else:
-                post_syn_neuros = self.get_post_syn_neurons(neuron)
-                self.pre_syn_spikes[post_syn_neuros] += -1 if self.is_inh[neuron] else +1
+                post_syn_neurons = self.get_post_syn_neurons(neuron)
+                self.pre_syn_spikes[post_syn_neurons] += -1 if self.is_inh[neuron] else +1
         self.v_s += (self.v_rev - self.v_s) * (self.g_c * self.pre_syn_spikes)
         
         # set neurons in refractory period to v_reset
@@ -165,4 +167,5 @@ class cortex_model:
         Returns:
             float64: order parameter C_syn
         """
-        return np.mean(self.is_fired[:, np.newaxis] & self.is_fired)
+        
+        return np.square(np.mean(self.is_fired))
