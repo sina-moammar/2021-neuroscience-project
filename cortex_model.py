@@ -154,11 +154,56 @@ class cortex_model:
         self.is_in_ref[self.fired_neurons] = True
         
     
-    def STDP_dynamics(self) -> None:
+    def STDP_dynamics(self, t_sim: int) -> None:
         """STDP update rule
+
+        Args:
+            t_sim (int): max number of steps for simulation of neurons
         """
-        
-        pass
+
+        # choose random neurons indices = [i(post-synaptic), j(pre-synaptic)] to pick c_ij
+        indices = np.random.randint(low=0, high=self.size, size=2, dtype=np.uint16)
+        # initialize tracing variables
+        c_ij = 0
+        x_s = np.zeros(2, dtype=np.float32)
+        n_s = np.zeros(2, dtype=np.uint16)
+
+        step = 0
+        # check if the activity is stopped or reaches to t_sim
+        while step < t_sim and len(self.fired_neurons):
+            # evolve neurons' potentials
+            self.neurons_dynamics()
+            
+            # check if pre- or post- synaptic neurons are fired and update their tracing variables
+            are_fired = self.is_fired[indices]
+            x_s[are_fired] += 1
+            n_s[are_fired] += 1
+            
+            # update c_ij
+            if are_fired[0]:
+                c_ij += x_s[1]
+            if are_fired[1]:
+                c_ij -= x_s[0]
+                
+            x_s *= self.x_exp_step
+            step += 1
+                
+        # updates topology
+        n_sum = np.sum(n_s)
+        if n_sum:
+            ratio = c_ij / n_sum
+            if ratio >= self.theta_stdp:
+                if self.is_full_model:
+                    self.g_s[indices[1], indices[0]] = self.g_levels
+                elif not self.graph.hasEdge(indices[1], indices[0]):
+                    self.graph.addEdge(indices[1], indices[0])
+                    self.post_syn_neurons[indices[1]] = None
+            else:
+                if self.is_full_model:
+                    self.g_s[indices[1], indices[0]] = 0
+                elif self.graph.hasEdge(indices[1], indices[0]):
+                    self.graph.removeEdge(indices[1], indices[0])
+                    self.post_syn_neurons[indices[1]] = None
     
     
     def c_syn(self) -> float64:
