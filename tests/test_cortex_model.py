@@ -196,3 +196,32 @@ def test_c_syn():
     model.neurons_dynamics()
     assert model.c_syn() == 0
     
+    
+def test_restart():
+    params = default_params()
+
+    model = cortex_model(**params)
+    
+    model.is_inh[:] = [0, 0, 1, 0]
+    v_s_0 = np.array([10, 0.98, 0.95, 0.3], np.float32) * params['v_th']
+    model.v_s[:] = v_s_0
+    
+    model.neurons_dynamics()
+    model.restart()
+    
+    assert np.all((0 <= model.v_s) & (model.v_s < params['v_th']))
+    assert np.array_equal(model.neurons[model.is_fired], model.fired_neurons)    
+    assert np.array_equal(model.is_in_ref, model.is_fired)
+    assert np.array_equiv(model.steps_after_spike, 0)
+    
+    fired_count = 0
+    sample_size = 1000
+    abv_th_per = np.random.rand()
+    for _ in range(sample_size):
+        model.restart(abv_th_per)
+        fired_count += len(model.fired_neurons)
+    p_fired = fired_count / sample_size / model.size
+    # 6 sigma error margin
+    error_margin = 6 * np.sqrt(abv_th_per * (1 - abv_th_per) / model.size / sample_size)
+    assert (p_fired - error_margin) < abv_th_per < (p_fired + error_margin)
+    
