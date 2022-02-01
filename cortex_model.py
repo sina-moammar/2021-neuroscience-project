@@ -6,6 +6,7 @@ from typing import List
 from typing_extensions import Literal
 
 
+
 class cortex_model:
     MODE = Literal['mask', 'full']
     
@@ -184,6 +185,8 @@ class cortex_model:
                 c_ij += x_s[1]
             if are_fired[1]:
                 c_ij -= x_s[0]
+                if c_ij < 0:
+                    c_ij = 0
                 
             x_s *= self.x_exp_step
             step += 1
@@ -214,3 +217,21 @@ class cortex_model:
         """
         
         return np.square(np.mean(self.is_fired))
+    
+    
+    
+    
+    
+    
+    
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
